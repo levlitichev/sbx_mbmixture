@@ -128,8 +128,9 @@ for (ii in 1:nrow(imp_snps)) {
     mutate(this.genotype=factor(
         this.genotype, levels=c(1,2,3))) %>% # helps avoid failure when sample has very few reads
     group_by(this.genotype, .drop=F)  %>%
-    summarise(A=sum(count1), B=sum(count2), .groups="drop") %>% as.matrix
-  sample_results[ii,,] <- sample.result.for.ii[, c("A","B")]
+    summarise(A=sum(count1), B=sum(count2), .groups="drop") %>%
+    dplyr::select(A, B) %>% mutate_all(function(x) as.integer(x)) %>% as.matrix
+  sample_results[ii,,] <- sample.result.for.ii
   
   # PAIR_RESULTS
   # add the expected mouse genotype
@@ -148,10 +149,10 @@ for (ii in 1:nrow(imp_snps)) {
     summarise(A=sum(count1), B=sum(count2), .groups="drop") 
   pair_results[ii,,,1] <- pair.result.for.ii  %>%
     pivot_wider(id_cols=expected.genotype, names_from=this.genotype, values_from=A) %>% 
-    dplyr::select(c(`1`,`2`,`3`)) %>% as.matrix
+    dplyr::select(c(`1`,`2`,`3`)) %>% mutate_all(function(x) as.integer(x)) %>% as.matrix
   pair_results[ii,,,2] <- pair.result.for.ii  %>%
     pivot_wider(id_cols=expected.genotype, names_from=this.genotype, values_from=B) %>%
-    dplyr::select(c(`1`,`2`,`3`)) %>% as.matrix
+    dplyr::select(c(`1`,`2`,`3`)) %>% mutate_all(function(x) as.integer(x)) %>% as.matrix
 }  
 
 # write output for this chromosome  
