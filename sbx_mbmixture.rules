@@ -1,0 +1,60 @@
+CHROMOSOMES=[i for i in range(1,20)]
+
+rule all_mbmixture:
+   input:
+        expand(
+            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_allchr.rds'),
+            sample=Samples.keys(), host=HostGenomes.keys())
+
+rule sort_and_index_host_reads_bam:
+    input:
+        str(QC_FP/'decontam'/'intermediates'/'{host}'/'{sample}.bam')
+    output:
+        str(QC_FP/'mbmixture'/'{host}'/'sorted'/'{sample}.bam')
+    threads:
+        Cfg['sbx_mbmixture']['threads']
+    shell:
+        "samtools sort -@ {threads} -O bam {input} > {output} && samtools index -@ {threads} {output}"
+
+rule get_readcounts:
+    input:
+        str(QC_FP/'mbmixture'/'{host}'/'sorted'/'{sample}.bam')
+    output:
+        str(QC_FP/'mbmixture'/'{host}'/'readcounts'/'{sample}.csv')
+    envmodules:
+        "R/4.0.2"
+    script:
+        "scripts/get_readcounts.R"
+
+rule compare_readcounts:
+    input:
+        readcounts_path=str(QC_FP/'mbmixture'/'{host}'/'readcounts'/'{sample}.csv')
+    output:
+        sample_results_out_path=str(
+            QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'sample_results_chr{chr}.rds'),
+        pair_results_out_path=str(
+            QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_chr{chr}.rds')
+    params:
+       chr="{chr}"
+    threads:
+        Cfg['sbx_mbmixture']['threads'] # not currently used
+    envmodules:
+        "R/4.0.2"
+    script:
+        "scripts/compare_readcounts_to_imp_snps_one_chr.R"
+
+rule combine_results_across_chr:
+    input:
+        sample_results=expand(
+            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'sample_results_chr{chr}.rds'),
+            chr=CHROMOSOMES, allow_missing=True),
+        pair_results=expand(
+            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_chr{chr}.rds'),
+            chr=CHROMOSOMES, allow_missing=True)
+    output:
+        sample_results=str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'sample_results_allchr.rds'),
+        pair_results=str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_allchr.rds')
+    envmodules:
+        "R/4.0.2"
+    script:
+        "scripts/combine_results_across_chr.R"
