@@ -40,7 +40,7 @@ for (ii in 1:length(pair.results.files)) {
     cat("Loaded", pair.results.files[[ii]], "\n")
     this.mb.sample <- basename(dirname(pair.results.files[[ii]]))
 
-    this.pair.summary.df <- data.frame(t(apply(this.pair.res, 1, mle_pe)))
+    this.pair.summary.df <- data.frame(t(apply(this.pair.res, 1, mle_pe))) # mle_pe from mbmixture
     this.pair.summary.df$mouse.ID <- rownames(this.pair.summary.df)
     this.pair.summary.df$mb.sample <- this.mb.sample
     rownames(this.pair.summary.df) <- NULL
