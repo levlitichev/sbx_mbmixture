@@ -125,10 +125,10 @@ for (ii in 1:nrow(imp_snps)) {
   # count up the number of reads for major (A) and minor (B) alleles
   # separately for homozygous major (AA), heterozygous (AB), and homozygous minor (BB) SNPs
   sample.result.for.ii <- counts.df.for.ii %>% 
-    group_by(this.genotype) %>%
+    mutate(this.genotype=factor(
+        this.genotype, levels=c(1,2,3))) %>% # helps avoid failure when sample has very few reads
+    group_by(this.genotype, .drop=F)  %>%
     summarise(A=sum(count1), B=sum(count2), .groups="drop") %>% as.matrix
-  if (any(dim(sample.result.for.ii) != c(3,2)))
-    stop(sprintf("Didn't find all genotypes (AA, AB, BB). Probably insufficient reads for this sample."))
   sample_results[ii,,] <- sample.result.for.ii[, c("A","B")]
   
   # PAIR_RESULTS
@@ -142,7 +142,9 @@ for (ii in 1:nrow(imp_snps)) {
   # count up the number of reads for major and minor alleles for every combination of
   # expected genotype versus all other genotypes
   pair.result.for.ii <- counts.df.for.ii %>%
-    group_by(this.genotype, expected.genotype) %>%
+    mutate(this.genotype=factor(this.genotype, levels=c(1,2,3)),
+           expected.genotype=factor(expected.genotype, levels=c(1,2,3))) %>% 
+    group_by(this.genotype, expected.genotype, .drop=F) %>%
     summarise(A=sum(count1), B=sum(count2), .groups="drop") 
   pair_results[ii,,,1] <- pair.result.for.ii  %>%
     pivot_wider(id_cols=expected.genotype, names_from=this.genotype, values_from=A) %>% 
