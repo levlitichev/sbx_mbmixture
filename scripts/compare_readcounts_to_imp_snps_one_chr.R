@@ -127,8 +127,10 @@ for (ii in 1:nrow(imp_snps)) {
   sample.result.for.ii <- counts.df.for.ii %>% 
     group_by(this.genotype) %>%
     summarise(A=sum(count1), B=sum(count2), .groups="drop") %>% as.matrix
+  if (any(dim(sample.result.for.ii) != c(3,2)))
+    stop(sprintf("Didn't find all genotypes (AA, AB, BB). Probably insufficient reads for this sample."))
   sample_results[ii,,] <- sample.result.for.ii[, c("A","B")]
-
+  
   # PAIR_RESULTS
   # add the expected mouse genotype
   expected.mouse.genotype.df <- t(imp_snps[mouse.ID.for.this.mb.sample, ])
