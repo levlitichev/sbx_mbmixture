@@ -99,5 +99,5 @@ for(a in c("A", "C", "G", "T")) {
 dbDisconnect(snp.db)
 
 # write output
-write.csv(out.counts.df, args$out_path, quote=F, row.names=F)
+write.csv(out.counts.df, gzfile(args$out_path), quote=F, row.names=F)
 cat("Output written to", args$out_path, "\n")
