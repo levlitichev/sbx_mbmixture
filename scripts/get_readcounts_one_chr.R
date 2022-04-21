@@ -21,6 +21,8 @@ if (exists("snakemake")) {
         make_option(c("-o", "--out_path"),
             help="Path for output csv.gz file",
             metavar="path"),
+        make_option(c("-c", "--chr"), type="character",
+            help="What chromosome to work on, e.g. 1, 2, 3, X"),
         make_option(c("-s", "--snp_db_path"), default="cc_variants.sqlite", metavar="path",
             help="Path to sqlite database containing variants for Collaborative Cross founders (can be downloaded from https://figshare.com/ndownloader/files/18533342) [default %default]"),
         make_option("--bam_has_chr_prefix", type="logical", default=TRUE, metavar="logical",
@@ -40,6 +42,12 @@ if (!file.exists(args$bam_path))
 if (!file.exists(paste0(args$bam_path, ".bai")))
     stop(sprintf("Can't find index file at %s", paste0(args$bam_path, ".bai"))) 
 
+# make sure chromosome was provided
+if (is.null(args$chr))
+    stop("Must provide a chromosome.")
+cat("Chromosome", args$chr, "\n")
+chr <- args$chr
+
 # make sure CC SNP db exists
 if (!file.exists(args$snp_db_path))
     stop(sprintf("Path to CC SNP db doesn't exist. args$snp_db_path: %s", args$snp_db_path))
@@ -57,8 +65,8 @@ cat("Loaded", args$bam_path, "\n")
 snp.db <- dbConnect(SQLite(), args$snp_db_path)
 
 # optionally add "chr" prefix
-if (args$bam_has_chr_prefix) chr.for.bam.file <- paste0("chr", chr)
-else chr.for.bam.file <- chr
+if (args$bam_has_chr_prefix) {chr.for.bam.file <- paste0("chr", chr)
+} else {chr.for.bam.file <- chr}
 
 # compute pileup at each location (for this chromosome in this bam file)
 chr_length <- bf.seqinfo[chr.for.bam.file, "seqlengths"]
@@ -99,6 +107,6 @@ for(a in c("A", "C", "G", "T")) {
 dbDisconnect(snp.db)
 
 # write output
-out.df <- out.counts.df[c("chr", "pos", "count1", "count2"), ]
+out.df <- out.counts.df[, c("chr", "pos", "count1", "count2")]
 write.csv(out.df, gzfile(args$out_path), quote=F, row.names=F)
 cat("Output written to", args$out_path, "\n")
