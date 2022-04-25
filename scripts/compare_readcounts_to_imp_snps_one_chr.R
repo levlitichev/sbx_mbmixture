@@ -9,24 +9,32 @@ if (!exists("snakemake"))
     stop(sprintf("This script only works as part of a Snakemake pipeline.")) 
 
 args <- list()
-args$readcounts_path <- snakemake@input[["readcounts_path"]]
-args$chr <- chr <- as.integer(snakemake@params[["chr"]])
-args$sample_results_out_path <- snakemake@output[["sample_results_out_path"]]
-args$pair_results_out_path <- snakemake@output[["pair_results_out_path"]]
-args$snp_db_path <- snakemake@config[["sbx_mbmixture"]][["CC_sqlite_db"]]
-args$imp_snp_dir <- snakemake@config[["sbx_mbmixture"]][["imp_snps_dir"]]
+args$readcounts_path <- "~/DO_1D_3011_148w_readcounts.csv.gz")
+args$chr <- chr <- 19
+args$sample_results_out_path <- "~/DO_1D_3011_148w_chr19_sample_results.Rds"
+args$pair_results_out_path <- "~/DO_1D_3011_148w_chr19_pair_results.Rds"
+args$imp_snp_path <- "/project/thaisslab/mbmixture/2021-01_snpcalls/with_mouse_ids/chr19_imputed_w_mouse_ids.csv.gz"
+
+#args <- list()
+#args$readcounts_path <- snakemake@input[["readcounts_path"]]
+#args$chr <- chr <- as.integer(snakemake@params[["chr"]])
+#args$sample_results_out_path <- snakemake@output[["sample_results_out_path"]]
+#args$pair_results_out_path <- snakemake@output[["pair_results_out_path"]]
+#args$snp_db_path <- snakemake@config[["sbx_mbmixture"]][["CC_sqlite_db"]]
+#args$imp_snp_dir <- snakemake@config[["sbx_mbmixture"]][["imp_snps_dir"]]
 
 # make sure read counts file exists
 if (!file.exists(args$readcounts_path))
     stop(sprintf("Path to read counts doesn't exist. args$readcounts_path: %s", args$readcounts_path))
 
-# make sure imputed SNPs directory exists
-if (!dir.exists(args$imp_snp_dir))
-    stop(sprintf("Can't find directory with imputed SNPs. args$imp_snp_dir: %s", args$imp_snp_dir))
+# make sure imputed SNP file exists
+if (!file.exists(args$imp_snp_path))
+    stop(sprintf("Path to imputed SNPs doesn't exist. args$imp_snp_path: %s", args$imp_snp_path))
 
-# make sure CC SNP db exists
-if (!file.exists(args$snp_db_path))
-    stop(sprintf("Path to CC SNP db doesn't exist. args$snp_db_path: %s", args$snp_db_path))
+# make sure chromosome was provided
+if (is.null(args$chr))
+    stop("Must provide a chromosome.")
+cat("Chromosome", args$chr, "\n")
 
 # make sure output paths can be written to
 if (!dir.exists(dirname(args$sample_results_out_path)))
@@ -34,66 +42,40 @@ if (!dir.exists(dirname(args$sample_results_out_path)))
 if (!dir.exists(dirname(args$pair_results_out_path)))
     stop(sprintf("Can't write to the pair_results output path. args$pair_results_out_path: %s", args$pair_results_out_path))
 
-# the readcounts file should be named like `DO_1D_3011_044w.csv`
+# the readcounts file should be named like `DO_1D_3011_044w_chr19_readcounts.csv`
 # and the corresponding mouse ID is `DO-1D-3011`
 mouse.ID.for.this.mb.sample <- paste0(strsplit(basename(args$readcounts_path), "_")[[1]][1:3], collapse="-")
 cat("Mouse ID for this microbiome sample:", mouse.ID.for.this.mb.sample, "\n")
 
 # import read counts
-counts.df.all <- read.csv(args$readcounts_path,
-                 colClasses=list(chr="character")) # keep the chromosome column as character type
+counts.df <- read.csv(args$readcounts_path,
+                      colClasses=list(chr="character")) # keep the chromosome column as character type
 cat("Loaded", args$readcounts_path, "\n")
-
-# connect to CC database
-snp.db <- dbConnect(SQLite(), args$snp_db_path)
-
-# subset read counts to just this chromosome
-counts.df <- counts.df.all[counts.df.all$chr == chr, ]  
-
-# extract positions and IDs for CC SNPs 
-cat("Loading CC SNPs...")
-CC_snp_info <- dbGetQuery(snp.db, paste0("select pos,snp_id from variants where chr=='", chr, "'"))
-cat(" done.\n")
-
-# add snp_id to counts.df
-counts.df.w.SNP.id <- merge(counts.df, CC_snp_info, by="pos")
-
-# some positions correspond to more than 1 snp_id; remove duplicate snp_ids
-counts.df.w.SNP.id <- counts.df.w.SNP.id[!duplicated(counts.df.w.SNP.id$pos), ]
-stopifnot(length(unique(counts.df.w.SNP.id$pos)) == length(counts.df.w.SNP.id$pos))
-stopifnot(nrow(counts.df.w.SNP.id) == nrow(counts.df))
-
-# make sure imputed SNPs file exists for this chromosome
-imp_snp_path <- file.path(args$imp_snp_dir, paste0("imp_snp_", chr, ".csv"))
-if (!file.exists(imp_snp_path))
-  stop(sprintf("Can't find imputed SNPs for chromosome %s. imp_snp_path: %s", chr, imp_snp_path))
 
 # import imp_snps
 cat("Loading imputed SNPs...")
-imp_snps <- read.csv(file.path(args$imp_snp_dir, paste0("imp_snp_", chr, ".csv")), row.names=1, check.names=F)
+imp_snps <- read.csv(args$imp_snp_path, check.names=F)
+mouse_IDs <- colnames(imp_snps)[3:ncol(imp_snps)]
 cat(" done.\n")
 
 # check that the mouse ID for our microbiome sample matches a mouse ID in imp_snps
-if (!(mouse.ID.for.this.mb.sample %in% rownames(imp_snps)))
-  stop(sprintf("No mouse ID in imp_snps matches our mouse ID. First 3 mice in imp_snps: %s", paste0(rownames(imp_snps)[1:3], collapse=", ")))
+if (!(mouse.ID.for.this.mb.sample %in% mouse_IDs))
+  stop(sprintf("No mouse ID in imp_snps matches our mouse ID. First 3 mice in imp_snps: %s", paste0(mouse_IDs[1:3], collapse=", ")))
 
-# subset to SNPs that we were able to impute, i.e. in colnames(imp_snps)
-SNP.ids <- intersect(counts.df.w.SNP.id$snp_id, colnames(imp_snps))
-stopifnot(length(SNP.ids) > 0)
-counts.df.w.SNP.id <- counts.df.w.SNP.id[match(SNP.ids, counts.df.w.SNP.id$snp_id), ]
-imp_snps <- imp_snps[, SNP.ids]
-stopifnot(all(counts.df.w.SNP.id$snp_id == colnames(imp_snps)))
-cat("Using", length(SNP.ids), "SNPs to compare this microbiome sample to genotyped mice...\n")
+# counts.df should be a superset of SNPs that could be imputed
+merged  <- merge(imp_snps, counts.df, by=c("chr", "pos"))
+stopifnot(nrow(merged) > 0)
+cat("Using", nrow(merged), "SNPs to compare this microbiome sample to genotyped mice...\n")
 
 # initialize outputs
 # sample_results compares this microbiome sample to each genotyped mouse
-sample_results <- array(0, dim=c(nrow(imp_snps), 3, 2))
-dimnames(sample_results) <- list(rownames(imp_snps), c("AA", "AB", "BB"), c("A", "B"))
+sample_results <- array(0, dim=c(length(mouse_IDs), 3, 2))
+dimnames(sample_results) <- list(mouse_IDs, c("AA", "AB", "BB"), c("A", "B"))
 
 # pair_results is used for determining whether one sample is a mixture of samples
 # for all genotypes, simultaneously gets counts for the expected mouse genotype versus another genotype
-pair_results <- array(0, dim=c(nrow(imp_snps), 3, 3, 2))
-dimnames(pair_results) <- list(rownames(imp_snps), c("AA", "AB", "BB"),
+pair_results <- array(0, dim=c(length(mouse_IDs), 3, 3, 2))
+dimnames(pair_results) <- list(mouse_IDs, c("AA", "AB", "BB"),
                                c("AA", "AB", "BB"), c("A", "B"))
 
 # example of how sample_results will look
@@ -112,24 +94,22 @@ dimnames(pair_results) <- list(rownames(imp_snps), c("AA", "AB", "BB"),
 #     340 reads with the minor allele B at these same BB SNPs ('correct' reads)
 
 # loop over mice
-for (ii in 1:nrow(imp_snps)) {
+for (ii in 1:length(mouse_IDs)) {
+  
+  this.mouse <- mouse_IDs[ii]
   
   # SAMPLE_RESULTS
-  # add this mouse's genotype to counts.df
-  this.genotype.df <- t(imp_snps[ii, ])
-  colnames(this.genotype.df) <- "this.genotype"
-  counts.df.for.ii <- merge(
-    counts.df.w.SNP.id, this.genotype.df,
-    by.x="snp_id", by.y="row.names")
-  
-  # count up the number of reads for major (A) and minor (B) alleles
-  # separately for homozygous major (AA), heterozygous (AB), and homozygous minor (BB) SNPs
-  sample.result.for.ii <- counts.df.for.ii %>% 
-    mutate(this.genotype=factor(
-        this.genotype, levels=c(1,2,3))) %>% # helps avoid failure when sample has very few reads
-    group_by(this.genotype, .drop=F)  %>%
-    summarise(A=sum(count1), B=sum(count2), .groups="drop") %>%
-    dplyr::select(A, B) %>% mutate_all(function(x) as.integer(x)) %>% as.matrix
+  num.A.for.AA <- sum(merged[merged[[this.mouse]] == 0, "count1"])
+  num.B.for.AA <- sum(merged[merged[[this.mouse]] == 0, "count2"])
+  num.A.for.AB <- sum(merged[merged[[this.mouse]] == 0.5, "count1"])
+  num.B.for.AB <- sum(merged[merged[[this.mouse]] == 0.5, "count2"])
+  num.A.for.BB <- sum(merged[merged[[this.mouse]] == 1, "count1"])
+  num.B.for.BB <- sum(merged[merged[[this.mouse]] == 1, "count2"])
+  sample.result.for.ii <- matrix(c(
+    num.A.for.AA, num.B.for.AA,
+    num.A.for.AB, num.B.for.AB,
+    num.A.for.BB, num.B.for.BB),
+    ncol=2, byrow=T)
   sample_results[ii,,] <- sample.result.for.ii
   
   # PAIR_RESULTS
