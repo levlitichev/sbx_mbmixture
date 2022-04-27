@@ -3,69 +3,46 @@ suppressPackageStartupMessages(library(RSQLite))
 suppressPackageStartupMessages(library(optparse))
 
 # check if script is being run via snakemake
-if (exists("snakemake")) {
-    args <- list()
-    args$bam_path <- snakemake@input[[1]]
-    args$out_path <- snakemake@output[[1]]
-    args$snp_db_path <- snakemake@config[["sbx_mbmixture"]][["CC_sqlite_db"]]
-    args$chr <- chr <- as.integer(snakemake@params[["chr"]])
-    args$bam_has_chr_prefix <- TRUE #TODO
-
-} else {
-
-    # otherwise, parse inputs from command line
-    option_list <- list( 
-        make_option(c("-b", "--bam_path"),
-            help="Path to bam file containing reads that aligned to host (its index file must be located right next to it)",
-            metavar="path"),
-        make_option(c("-o", "--out_path"),
-            help="Path for output csv.gz file",
-            metavar="path"),
-        make_option(c("-c", "--chr"), type="character",
-            help="What chromosome to work on, e.g. 1, 2, 3, X"),
-        make_option(c("-s", "--snp_db_path"), default="cc_variants.sqlite", metavar="path",
-            help="Path to sqlite database containing variants for Collaborative Cross founders (can be downloaded from https://figshare.com/ndownloader/files/18533342) [default %default]"),
-        make_option("--bam_has_chr_prefix", type="logical", default=TRUE, metavar="logical",
-            help="Are chromosomes in the bam file prepended with 'bam'? [default %default]"))
+if (!exists("snakemake"))
+    stop(sprintf("This script only works as part of a Snakemake pipeline.")) 
     
-    args <- parse_args(OptionParser(
-        description="For every bi-allelic SNP that can be used to distinguish one Collaborative Cross (CC) founder line from another, count how many reads in a given bam file support calling each of the two alleles.",
-        option_list=option_list))
-
-}
+bam_path <- snakemake@input[[1]]
+out_path <- snakemake@output[[1]]
+snp_db_path <- snakemake@config[["sbx_mbmixture"]][["CC_sqlite_db"]]
+chr <- as.integer(snakemake@params[["chr"]])
+bam_has_chr_prefix <- TRUE #TODO
 
 # make sure bam file exists
-if (!file.exists(args$bam_path))
-    stop(sprintf("Path to bam file doesn't exist. args$bam_path: %s", args$bam_path))
+if (!file.exists(bam_path))
+    stop(sprintf("Path to bam file doesn't exist. bam_path: %s", bam_path))
 
 # make sure index file exists next to bam
-if (!file.exists(paste0(args$bam_path, ".bai")))
-    stop(sprintf("Can't find index file at %s", paste0(args$bam_path, ".bai"))) 
+if (!file.exists(paste0(bam_path, ".bai")))
+    stop(sprintf("Can't find index file at %s", paste0(bam_path, ".bai"))) 
 
 # make sure chromosome was provided
-if (is.null(args$chr))
+if (is.null(chr))
     stop("Must provide a chromosome.")
-cat("Chromosome", args$chr, "\n")
-chr <- args$chr
+cat("Chromosome", chr, "\n")
 
 # make sure CC SNP db exists
-if (!file.exists(args$snp_db_path))
-    stop(sprintf("Path to CC SNP db doesn't exist. args$snp_db_path: %s", args$snp_db_path))
+if (!file.exists(snp_db_path))
+    stop(sprintf("Path to CC SNP db doesn't exist. snp_db_path: %s", snp_db_path))
 
 # make sure output path can be written to
-if (!dir.exists(dirname(args$out_path)))
-    stop(sprintf("Can't write to the output path. args$out_path: %s", args$out_path))
+if (!dir.exists(dirname(out_path)))
+    stop(sprintf("Can't write to the output path. out_path: %s", out_path))
 
 # load bam file (index must be right next to the file)
-bf <- BamFile(args$bam_path, index=paste0(args$bam_path, ".bai"))
+bf <- BamFile(bam_path, index=paste0(bam_path, ".bai"))
 bf.seqinfo <- as.data.frame(seqinfo(bf))
-cat("Loaded", args$bam_path, "\n")
+cat("Loaded", bam_path, "\n")
 
 # connect to CC database
-snp.db <- dbConnect(SQLite(), args$snp_db_path)
+snp.db <- dbConnect(SQLite(), snp_db_path)
 
 # optionally add "chr" prefix
-if (args$bam_has_chr_prefix) {chr.for.bam.file <- paste0("chr", chr)
+if (bam_has_chr_prefix) {chr.for.bam.file <- paste0("chr", chr)
 } else {chr.for.bam.file <- chr}
 
 # compute pileup at each location (for this chromosome in this bam file)
@@ -108,5 +85,5 @@ dbDisconnect(snp.db)
 
 # write output
 out.df <- out.counts.df[, c("chr", "pos", "count1", "count2")]
-write.csv(out.df, gzfile(args$out_path), quote=F, row.names=F)
-cat("Output written to", args$out_path, "\n")
+write.csv(out.df, gzfile(out_path), quote=F, row.names=F)
+cat("Output written to", out_path, "\n")
