@@ -1,10 +1,10 @@
 library(mbmixture) # github.com/kbroman/mbmixture
 
 # this script is currently run manually, not as part of snakemake
-sample.results.files <- Sys.glob("/path/to/sunbeam/sunbeam_output/qc/mbmixture/genome/summaries/*/sample_results_allchr.rds")
-pair.results.files <- Sys.glob("/path/to/sunbeam/sunbeam_output/qc/mbmixture/genome/summaries/*/pair_results_allchr.rds")
-sample.results.out.path <- "/path/to/sunbeam/sunbeam_output/qc/mbmixture/genome/summaries/sample_results_all.csv"
-pair.results.out.path <- "/path/to/sunbeam/sunbeam_output/qc/mbmixture/genome/summaries/pair_results_all.csv"
+sample.results.files <- Sys.glob("/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/sample_results/*/all.rds")
+pair.results.files <- Sys.glob("/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/pair_results/*/all.rds")
+sample.results.out.path <- "/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/all_sample_results.csv"
+pair.results.out.path <- "/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/all_pair_results.csv"
 
 # sample_results
 list.of.sample.result.summaries <- vector("list", length=length(sample.results.files))
