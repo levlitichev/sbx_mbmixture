@@ -8,7 +8,7 @@ if (!exists("snakemake"))
     
 bam_path <- snakemake@input[[1]]
 out_path <- snakemake@output[[1]]
-snp_db_path <- snakemake@config[["sbx_mbmixture"]][["CC_sqlite_db"]]
+snp_db_path <- snakemake@config[["sbx_mbmixture"]][["CC_sqlite_fp"]]
 chr <- as.integer(snakemake@params[["chr"]])
 bam_has_chr_prefix <- TRUE #TODO
 
