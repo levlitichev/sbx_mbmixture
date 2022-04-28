@@ -1,5 +1,9 @@
-CHROMOSOMES=[i for i in range(1,20)]
+from pathlib import Path
 
+CHROMOSOMES=[i for i in range(1,20)]
+IMP_SNP_DIR=Path(Cfg['sbx_mbmixture']['imp_snp_fp'])
+# N.B. Can use a forward slash (`/`) in paths because QC_FP and IMP_SNP_FP are pathlib.Path objects
+ 
 rule all_mbmixture:
    input:
         expand(
@@ -13,31 +17,53 @@ rule sort_and_index_host_reads_bam:
         str(QC_FP/'mbmixture'/'{host}'/'sorted'/'{sample}.bam')
     threads:
         Cfg['sbx_mbmixture']['threads']
+    resources:
+        mem_mb=24576 #24GB
     shell:
         "samtools sort -@ {threads} -O bam {input} > {output} && samtools index -@ {threads} {output}"
+
+# TEMPORARY
+rule all_get_readcounts:
+    input:
+        expand(
+            str(QC_FP/'mbmixture'/'{host}'/'readcounts'/'{sample}'/'chr{chr}.csv.gz'),
+            sample=Samples.keys(), host=HostGenomes.keys(), chr=CHROMOSOMES)
 
 rule get_readcounts:
     input:
         str(QC_FP/'mbmixture'/'{host}'/'sorted'/'{sample}.bam')
     output:
-        str(QC_FP/'mbmixture'/'{host}'/'readcounts'/'{sample}.csv')
+        str(QC_FP/'mbmixture'/'{host}'/'readcounts'/'{sample}'/'chr{chr}.csv.gz')
+    params:
+        chr="{chr}"
+    resources:
+        mem_mb=16384 #16GB
     envmodules:
         "R/4.0.2"
     script:
-        "scripts/get_readcounts.R"
+        "scripts/get_readcounts_one_chr.R"
+
+# TEMPORARY
+rule all_compare_readcounts:
+   input:
+        expand(
+            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'pair_results'/'{sample}'/'chr{chr}.rds'),
+            sample=Samples.keys(), host=HostGenomes.keys(), chr=CHROMOSOMES)
 
 rule compare_readcounts:
     input:
-        readcounts_path=str(QC_FP/'mbmixture'/'{host}'/'readcounts'/'{sample}.csv')
+        readcounts_path=str(QC_FP/'mbmixture'/'{host}'/'readcounts'/'{sample}'/'chr{chr}.csv.gz'),
+        imp_snp_path=str(IMP_SNP_DIR/'chr{chr}.csv.gz')
     output:
         sample_results_out_path=str(
-            QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'sample_results_chr{chr}.rds'),
+            QC_FP/'mbmixture'/'{host}'/'summaries'/'sample_results'/'{sample}'/'chr{chr}.rds'),
         pair_results_out_path=str(
-            QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_chr{chr}.rds')
+            QC_FP/'mbmixture'/'{host}'/'summaries'/'pair_results'/'{sample}'/'chr{chr}.rds')
     params:
-       chr="{chr}"
-    threads:
-        Cfg['sbx_mbmixture']['threads'] # not currently used
+        sample="{sample}",
+        chr="{chr}"
+    resources:
+        mem_mb=65536 #64GB
     envmodules:
         "R/4.0.2"
     script:
