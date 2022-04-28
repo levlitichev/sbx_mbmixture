@@ -7,7 +7,7 @@ IMP_SNP_DIR=Path(Cfg['sbx_mbmixture']['imp_snp_fp'])
 rule all_mbmixture:
    input:
         expand(
-            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_allchr.rds'),
+            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'pair_results'/'{sample}'/'all.rds'),
             sample=Samples.keys(), host=HostGenomes.keys())
 
 rule sort_and_index_host_reads_bam:
@@ -18,7 +18,7 @@ rule sort_and_index_host_reads_bam:
     threads:
         Cfg['sbx_mbmixture']['threads']
     resources:
-        mem_mb=24576 #24GB
+        mem_mb=16384 #16GB
     shell:
         "samtools sort -@ {threads} -O bam {input} > {output} && samtools index -@ {threads} {output}"
 
@@ -72,14 +72,14 @@ rule compare_readcounts:
 rule combine_results_across_chr:
     input:
         sample_results=expand(
-            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'sample_results_chr{chr}.rds'),
+            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'sample_results'/'{sample}'/'chr{chr}.rds'),
             chr=CHROMOSOMES, allow_missing=True),
         pair_results=expand(
-            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_chr{chr}.rds'),
+            str(QC_FP/'mbmixture'/'{host}'/'summaries'/'pair_results'/'{sample}'/'chr{chr}.rds'),
             chr=CHROMOSOMES, allow_missing=True)
     output:
-        sample_results=str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'sample_results_allchr.rds'),
-        pair_results=str(QC_FP/'mbmixture'/'{host}'/'summaries'/'{sample}'/'pair_results_allchr.rds')
+        sample_results=str(QC_FP/'mbmixture'/'{host}'/'summaries'/'sample_results'/'{sample}'/'all.rds'),
+        pair_results=str(QC_FP/'mbmixture'/'{host}'/'summaries'/'pair_results'/'{sample}'/'all.rds')
     envmodules:
         "R/4.0.2"
     script:
