@@ -1,4 +1,4 @@
 sbx_mbmixture:
   threads: 8
-  CC_sqlite_db: /path/to/cc_variants.sqlite
-  imp_snps_dir: /path/to/snpcalls
+  CC_sqlite_fp: /path/to/cc_variants.sqlite
+  imp_snp_fp: /path/to/snpcalls
