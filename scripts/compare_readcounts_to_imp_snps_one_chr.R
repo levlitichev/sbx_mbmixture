@@ -38,10 +38,17 @@ counts.df <- read.csv(readcounts_path,
                       colClasses=list(chr="character")) # keep the chromosome column as character type
 cat("Loaded", readcounts_path, "\n")
 
-# the sample should be named like `DO_1D_3011_044w`
-# and the corresponding mouse ID will be `DO-1D-3011`
-mouse.ID.for.this.mb.sample <- paste0(strsplit(sample, "_")[[1]][1:3], collapse="-")
+##### WARNING #####
+# The following line of code is fragile and depends on how mouse ID is encoded in the sample name
+
+# if the sample is named like `DO_1D_3011_044w` and the mouse should be `DO-1D-3011`:
+#mouse.ID.for.this.mb.sample <- paste0(strsplit(sample, "_")[[1]][1:3], collapse="-")
+
+# if the sample is named like `LB17_DO_1D_3011_044w` and the mouse should be `DO-1D-3011`:
+mouse.ID.for.this.mb.sample <- paste0(strsplit(sample, "_")[[1]][2:4], collapse="-")
+
 cat("Mouse ID for this microbiome sample:", mouse.ID.for.this.mb.sample, "\n")
+##### END OF WARNING #####
 
 # import imp_snps (slow)
 imp_snps <- read_csv(imp_snp_path, col_types=cols(chr="i", pos="i", .default="d"))
