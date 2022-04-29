@@ -62,6 +62,8 @@ rule compare_readcounts:
     params:
         sample="{sample}",
         chr="{chr}"
+    threads:
+        Cfg["sbx_mbmixture"]["threads"]
     resources:
         mem_mb=65536 #64GB
     envmodules:

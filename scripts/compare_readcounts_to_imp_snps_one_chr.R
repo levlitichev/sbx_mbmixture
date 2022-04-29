@@ -13,6 +13,7 @@ sample <- snakemake@params[["sample"]]
 chr <- as.integer(snakemake@params[["chr"]])
 sample_results_out_path <- snakemake@output[["sample_results_out_path"]]
 pair_results_out_path <- snakemake@output[["pair_results_out_path"]]
+threads <- as.integer(snakemake@threads)
 
 # make sure read counts file exists
 if (!file.exists(readcounts_path))
@@ -51,7 +52,7 @@ cat("Mouse ID for this microbiome sample:", mouse.ID.for.this.mb.sample, "\n")
 ##### END OF WARNING #####
 
 # import imp_snps (slow)
-imp_snps <- read_csv(imp_snp_path, col_types=cols(chr="i", pos="i", .default="d"))
+imp_snps <- read_csv(imp_snp_path, col_types=cols(chr="i", pos="i", .default="d"), num_threads=threads)
 mouse_IDs <- colnames(imp_snps)[3:ncol(imp_snps)]
 cat("Loaded", imp_snp_path, "\n")
 
