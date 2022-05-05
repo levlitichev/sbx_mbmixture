@@ -56,27 +56,15 @@ imp_snps <- read_csv(imp_snp_path, col_types=cols(chr="i", pos="i", .default="d"
 mouse_IDs <- colnames(imp_snps)[3:ncol(imp_snps)]
 cat("Loaded", imp_snp_path, "\n")
 
-# check that the mouse ID for our microbiome sample matches a mouse ID in imp_snps
-if (!(mouse.ID.for.this.mb.sample %in% mouse_IDs))
-  stop(sprintf("No mouse ID in imp_snps matches our mouse ID. Mouse ID in microbiome sample: %s, first 3 mice in imp_snps: %s", mouse.ID.for.this.mb.sample, paste0(mouse_IDs[1:3], collapse=", ")))
-
 # SNPs in counts.df should be a subset of imputed bi-allelic SNPs
 # (because in get_readcounts.R, we already subset to bi-allelic SNPs in the CC sqlite db)
 merged  <- merge(imp_snps, counts.df, by=c("chr", "pos"))
 stopifnot(nrow(merged) > 0)
 cat("Using", nrow(merged), "SNPs to compare this microbiome sample to genotyped mice...\n")
 
-# initialize outputs
+##### SAMPLE_RESULTS #####
+
 # sample_results compares this microbiome sample to each genotyped mouse
-sample_results <- array(0, dim=c(length(mouse_IDs), 3, 2))
-dimnames(sample_results) <- list(mouse_IDs, c("AA", "AB", "BB"), c("A", "B"))
-
-# pair_results is used for determining whether one sample is a mixture of samples
-# for all genotypes, simultaneously gets counts for the expected mouse genotype versus another genotype
-pair_results <- array(0, dim=c(length(mouse_IDs), 3, 3, 2))
-dimnames(pair_results) <- list(mouse_IDs, c("AA", "AB", "BB"),
-                               c("AA", "AB", "BB"), c("A", "B"))
-
 # example of how sample_results will look
 # sample_results[1,,]:
 #         A     B
@@ -92,12 +80,15 @@ dimnames(pair_results) <- list(mouse_IDs, c("AA", "AB", "BB"),
 #     398 reads with the major allele A at SNPs homozygous for the minor allele (BB) ('incorrect' reads); and
 #     340 reads with the minor allele B at these same BB SNPs ('correct' reads)
 
+# initialize output
+sample_results <- array(0, dim=c(length(mouse_IDs), 3, 2))
+dimnames(sample_results) <- list(mouse_IDs, c("AA", "AB", "BB"), c("A", "B"))
+
 # loop over mice
 for (ii in 1:length(mouse_IDs)) {
   cat("Comparing microbiome sample to mouse", ii, "of", length(mouse_IDs), "\n") 
   this.mouse <- mouse_IDs[ii]
   
-  # SAMPLE_RESULTS
   num.A.for.AA <- sum(merged[merged[[this.mouse]] == 0, "count1"])
   num.B.for.AA <- sum(merged[merged[[this.mouse]] == 0, "count2"])
   num.A.for.AB <- sum(merged[merged[[this.mouse]] == 0.5, "count1"])
@@ -110,8 +101,29 @@ for (ii in 1:length(mouse_IDs)) {
     num.A.for.BB, num.B.for.BB),
     ncol=2, byrow=T)
   sample_results[ii,,] <- sample.result.for.ii
+}
+
+# write output
+saveRDS(sample_results, sample_results_out_path)
+cat("Saved sample_results for chr", chr, "\n")
+
+##### PAIR_RESULTS #####
+# pair_results is used for determining whether one sample is a mixture of samples
+# for all genotypes, simultaneously gets counts for the expected mouse genotype versus another genotype
+
+# check that the mouse ID for our microbiome sample matches a mouse ID in imp_snps
+if (!(mouse.ID.for.this.mb.sample %in% mouse_IDs))
+  stop(sprintf("No mouse ID in imp_snps matches our mouse ID. Mouse ID in microbiome sample: %s, first 3 mice in imp_snps: %s", mouse.ID.for.this.mb.sample, paste0(mouse_IDs[1:3], collapse=", ")))
+
+# initialize output
+pair_results <- array(0, dim=c(length(mouse_IDs), 3, 3, 2))
+dimnames(pair_results) <- list(mouse_IDs, c("AA", "AB", "BB"),
+                               c("AA", "AB", "BB"), c("A", "B"))
+# loop over mice
+for (ii in 1:length(mouse_IDs)) {
+  cat("Comparing microbiome sample to mouse", ii, "of", length(mouse_IDs), "\n") 
+  this.mouse <- mouse_IDs[ii]
   
-  # PAIR_RESULTS
   # count up the number of reads for major and minor alleles for every combination of
   # expected genotype versus all other genotypes
   pair.result.for.ii <- merged %>%
@@ -129,7 +141,6 @@ for (ii in 1:length(mouse_IDs)) {
     dplyr::select(c(`0`,`0.5`,`1`)) %>% mutate_all(function(x) as.integer(x)) %>% as.matrix
 }  
 
-# write output for this chromosome  
-saveRDS(sample_results, sample_results_out_path)
+# write output  
 saveRDS(pair_results, pair_results_out_path)
-cat("Saved results for chr", chr, "\n")
+cat("Saved pair_results for chr", chr, "\n")
