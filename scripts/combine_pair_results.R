@@ -1,4 +1,4 @@
-pair_results_files <- snakemake@input[[1]]
+pair_results_files <- snakemake@input
 pair_results_out_path <- snakemake@output[[1]]
 
 cat("Will combine", length(pair_results_files), "pair_results files.\n")
