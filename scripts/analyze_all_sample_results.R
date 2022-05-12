@@ -1,12 +1,7 @@
-library(mbmixture) # github.com/kbroman/mbmixture
-
 # this script is currently run manually, not as part of snakemake
 sample.results.files <- Sys.glob("/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/sample_results/*/all.rds")
-pair.results.files <- Sys.glob("/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/pair_results/*/all.rds")
 sample.results.out.path <- "/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/all_sample_results.csv"
-pair.results.out.path <- "/path/to/sunbeam/sunbeam_output/qc/mbmixture/mm10/summaries/all_pair_results.csv"
 
-# sample_results
 list.of.sample.result.summaries <- vector("list", length=length(sample.results.files))
 for (ii in 1:length(sample.results.files)) {
     this.res <- readRDS(sample.results.files[[ii]])
@@ -31,26 +26,3 @@ sample.result.summary.df <- data.frame(do.call(rbind, list.of.sample.result.summ
 write.csv(apply(sample.result.summary.df, 2, as.character),
           file=sample.results.out.path, quote=F, row.names=F)
 cat("Wrote", sample.results.out.path, "\n")
-
-# pair_results
-list.of.pair.result.summaries <- vector("list", length=length(pair.results.files))
-for (ii in 1:length(pair.results.files)) {
-    
-    this.pair.res <- readRDS(pair.results.files[[ii]])
-    cat("Loaded", pair.results.files[[ii]], "\n")
-    this.mb.sample <- basename(dirname(pair.results.files[[ii]]))
-
-    this.pair.summary.df <- data.frame(t(apply(this.pair.res, 1, mle_pe))) # mle_pe from mbmixture
-    this.pair.summary.df$mouse.ID <- rownames(this.pair.summary.df)
-    this.pair.summary.df$mb.sample <- this.mb.sample
-    rownames(this.pair.summary.df) <- NULL
-
-    list.of.pair.result.summaries[[ii]] <- this.pair.summary.df
-}
-
-pair.result.summary.df <- do.call(rbind, list.of.pair.result.summaries)
-
-# write output
-write.csv(apply(pair.result.summary.df, 2, as.character),
-          pair.results.out.path,  quote=F, row.names=F)
-cat("Wrote", pair.results.out.path, "\n")
