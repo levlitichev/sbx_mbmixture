@@ -49,7 +49,7 @@ cat("Mouse ID for this microbiome sample:", mouse.ID.for.this.mb.sample, "\n")
 ##### END OF WARNING #####
 
 # read just one line of imp_snps to get mouse_IDs
-imp_snps_tmp <- read.csv(imp_snp_path, nrow=1, header=T)
+imp_snps_tmp <- read.csv(imp_snp_path, nrow=1, header=T, check.names=F)
 mouse_IDs <- colnames(imp_snps_tmp)[3:ncol(imp_snps_tmp)]
 
 # check that the mouse ID for our microbiome sample matches a mouse ID in imp_snps
@@ -96,5 +96,5 @@ for (ii in 1:length(mouse_IDs)) {
 }  
 
 # write output  
-saveRDS(pair_results, pair_results_out_path)
+saveRDS(pair_results, out_path)
 cat("Saved pair_results for chr", chr, "\n")
